@@ -1,0 +1,179 @@
+
+<h2 class="sr-only">台灣直飛日本航點互動地圖，可縮放，依2025年旅客運量分四色四尺寸顯示</h2>
+
+<div style="padding: 1rem 0 0.5rem;">
+  <div style="font-size: 15px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 4px;">台灣直飛日本航點・2025年旅客運量</div>
+  <div style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 10px;">滑鼠滾輪縮放・拖曳移動・移至圓點查看詳情</div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:12px;align-items:center;">
+    <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-text-secondary);">
+      <span style="width:16px;height:16px;border-radius:50%;background:#9B1C1C;display:inline-block;flex-shrink:0;"></span>300萬人以上
+    </span>
+    <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-text-secondary);">
+      <span style="width:13px;height:13px;border-radius:50%;background:#2E7D7B;display:inline-block;flex-shrink:0;"></span>100萬人以上
+    </span>
+    <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-text-secondary);">
+      <span style="width:10px;height:10px;border-radius:50%;background:#B8896A;display:inline-block;flex-shrink:0;"></span>10萬人以上
+    </span>
+    <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-text-secondary);">
+      <span style="width:7px;height:7px;border-radius:50%;background:#C8C8C8;display:inline-block;flex-shrink:0;"></span>10萬人以下
+    </span>
+  </div>
+
+  <div id="map-wrap" style="position:relative;width:100%;border-radius:var(--border-radius-lg);overflow:hidden;border:0.5px solid var(--color-border-tertiary);cursor:grab;">
+    <div id="tooltip" style="position:absolute;background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:6px 10px;font-size:13px;color:var(--color-text-primary);pointer-events:none;display:none;z-index:20;white-space:nowrap;line-height:1.6;"></div>
+    <svg id="map-svg" style="width:100%;display:block;"></svg>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script>
+const airports = [
+  { name:"東京成田",  code:"NRT", lat:35.77, lon:140.38, pax:4035424 },
+  { name:"大阪關西",  code:"KIX", lat:34.43, lon:135.24, pax:3487778 },
+  { name:"沖繩那霸",  code:"OKA", lat:26.20, lon:127.65, pax:1939562 },
+  { name:"東京羽田",  code:"HND", lat:35.55, lon:139.78, pax:1695815 },
+  { name:"福岡",      code:"FUK", lat:33.58, lon:130.45, pax:1306722 },
+  { name:"札幌新千歲",code:"CTS", lat:42.78, lon:141.69, pax:1127207 },
+  { name:"名古屋中部",code:"NGO", lat:34.86, lon:136.81, pax:1020937 },
+  { name:"仙台",      code:"SDJ", lat:38.14, lon:140.92, pax:392641  },
+  { name:"熊本",      code:"KMJ", lat:32.83, lon:130.86, pax:300054  },
+  { name:"岡山",      code:"OKJ", lat:34.76, lon:133.86, pax:201324  },
+  { name:"高松",      code:"TAK", lat:34.21, lon:134.01, pax:156438  },
+  { name:"小松",      code:"KMQ", lat:36.39, lon:136.41, pax:151277  },
+  { name:"神戶",      code:"UKB", lat:34.63, lon:135.23, pax:148517  },
+  { name:"函館",      code:"HKD", lat:41.78, lon:140.82, pax:142195  },
+  { name:"廣島",      code:"HIJ", lat:34.44, lon:132.92, pax:69204   },
+  { name:"松山",      code:"MYJ", lat:33.83, lon:132.70, pax:54784   },
+  { name:"青森",      code:"AOJ", lat:40.74, lon:140.69, pax:45812   },
+  { name:"佐賀",      code:"HSG", lat:33.15, lon:130.30, pax:43652   },
+  { name:"高知",      code:"KCZ", lat:33.55, lon:133.67, pax:34600   },
+  { name:"花卷",      code:"HNA", lat:39.42, lon:141.14, pax:33575   },
+  { name:"鹿兒島",    code:"KOJ", lat:31.80, lon:130.72, pax:33082   },
+  { name:"秋田",      code:"AXT", lat:39.61, lon:140.22, pax:32459   },
+  { name:"旭川",      code:"AKJ", lat:43.67, lon:142.45, pax:31800   },
+  { name:"福島",      code:"FKS", lat:37.23, lon:140.43, pax:30983   },
+  { name:"新潟",      code:"KIJ", lat:37.95, lon:139.11, pax:30941   },
+  { name:"宮崎",      code:"KMI", lat:31.88, lon:131.45, pax:26528   },
+  { name:"石垣島",    code:"ISG", lat:24.40, lon:124.25, pax:23615   },
+  { name:"大分",      code:"OIT", lat:33.48, lon:131.74, pax:23251   },
+  { name:"茨城",      code:"IBR", lat:36.18, lon:140.42, pax:21500   },
+  { name:"米子",      code:"YGJ", lat:35.50, lon:133.24, pax:17740   },
+  { name:"下地島",    code:"SHI", lat:24.83, lon:125.15, pax:6585    },
+  { name:"北九州",    code:"KKJ", lat:33.84, lon:131.03, pax:2843    },
+  { name:"靜岡",      code:"FSZ", lat:34.80, lon:138.19, pax:927     },
+  { name:"富山",      code:"TOY", lat:36.65, lon:137.19, pax:0       },
+];
+
+function getTier(pax) {
+  if (pax >= 3000000) return { fill:'#9B1C1C', stroke:'#6B1010', r:11, hr:15 };
+  if (pax >= 1000000) return { fill:'#2E7D7B', stroke:'#1B5250', r:8,  hr:11 };
+  if (pax >= 100000)  return { fill:'#B8896A', stroke:'#8B5E44', r:5.5,hr:8  };
+  return                     { fill:'#C8C8C8', stroke:'#999999', r:3,  hr:5  };
+}
+
+function fmt(n) {
+  if (!n) return '資料待補';
+  return n.toLocaleString() + ' 人';
+}
+
+const isDark   = matchMedia('(prefers-color-scheme: dark)').matches;
+const landFill   = isDark ? '#2a2e35' : '#eaede8';
+const landStroke = isDark ? '#555'    : '#c0cdb8';
+const seaFill    = isDark ? '#1a1f2e' : '#d0e8f4';
+
+const wrap = document.getElementById('map-wrap');
+const svg  = d3.select('#map-svg');
+const tip  = document.getElementById('tooltip');
+
+const W = wrap.clientWidth || 600;
+const H = Math.round(W * 1.05);
+svg.attr('viewBox', `0 0 ${W} ${H}`).attr('height', H);
+
+svg.append('rect').attr('width', W).attr('height', H).attr('fill', seaFill);
+
+const projection = d3.geoMercator()
+  .center([137.5, 37.5])
+  .scale(W * 2.2)
+  .translate([W * 0.52, H * 0.46]);
+
+const pathGen = d3.geoPath(projection);
+
+const g = svg.append('g');
+const dotsG = svg.append('g');
+
+const zoom = d3.zoom()
+  .scaleExtent([0.6, 12])
+  .on('zoom', (event) => {
+    g.attr('transform', event.transform);
+    dotsG.attr('transform', event.transform);
+    const k = event.transform.k;
+    dotsG.selectAll('circle').each(function() {
+      const base = +d3.select(this).attr('data-r');
+      d3.select(this).attr('r', base / Math.sqrt(k));
+    });
+  });
+
+svg.call(zoom);
+
+wrap.style.cursor = 'grab';
+svg.on('mousedown', () => { wrap.style.cursor = 'grabbing'; })
+   .on('mouseup',   () => { wrap.style.cursor = 'grab'; });
+
+d3.json('https://cdn.jsdelivr.net/npm/datamaps@0.5.10/src/js/data/jpn.topo.json').then(topo => {
+  const features = topojson.feature(topo, topo.objects.jpn).features;
+
+  g.selectAll('path.land')
+    .data(features).join('path')
+    .attr('class','land')
+    .attr('d', pathGen)
+    .attr('fill', landFill)
+    .attr('stroke', landStroke)
+    .attr('stroke-width', 0.4);
+
+  const sorted = [...airports].sort((a, b) => a.pax - b.pax);
+
+  sorted.forEach(a => {
+    const [x, y] = projection([a.lon, a.lat]);
+    if (!x || !y) return;
+    const t = getTier(a.pax);
+
+    dotsG.append('circle')
+      .attr('cx', x).attr('cy', y)
+      .attr('r', t.r)
+      .attr('data-r', t.r)
+      .attr('fill', t.fill)
+      .attr('stroke', t.stroke)
+      .attr('stroke-width', 0.8)
+      .style('cursor', 'pointer')
+      .on('mouseenter', function(event) {
+        const k = d3.zoomTransform(svg.node()).k;
+        d3.select(this).attr('r', t.hr / Math.sqrt(k));
+        tip.innerHTML = `<span style="font-weight:500;">${a.name} (${a.code})</span><br><span style="color:var(--color-text-secondary);font-size:12px;">2025年旅客：${fmt(a.pax)}</span>`;
+        tip.style.display = 'block';
+      })
+      .on('mousemove', function(event) {
+        const rect = wrap.getBoundingClientRect();
+        let lx = event.clientX - rect.left + 14;
+        let ly = event.clientY - rect.top - 10;
+        if (lx + 200 > W) lx = event.clientX - rect.left - 195;
+        tip.style.left = lx + 'px';
+        tip.style.top  = ly + 'px';
+      })
+      .on('mouseleave', function() {
+        const k = d3.zoomTransform(svg.node()).k;
+        d3.select(this).attr('r', t.r / Math.sqrt(k));
+        tip.style.display = 'none';
+      });
+  });
+
+}).catch(() => {
+  svg.append('text')
+    .attr('x', W/2).attr('y', H/2)
+    .attr('text-anchor','middle')
+    .attr('fill', isDark ? '#aaa' : '#666')
+    .attr('font-size', 14)
+    .text('地圖載入失敗，請重新整理');
+});
+</script>
